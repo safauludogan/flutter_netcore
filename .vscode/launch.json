@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Flutter Tests (task)",
+      "type": "dart",
+      "request": "launch",
+      "program": "test",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Flutter: test"
+    }
+  ]
+}
