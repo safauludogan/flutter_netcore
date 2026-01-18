@@ -1,5 +1,5 @@
 import 'package:flutter_netcore/src/configuration/config_mixin.dart';
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Network request config
 class NetworkRequestConfig with ConfigMixin {

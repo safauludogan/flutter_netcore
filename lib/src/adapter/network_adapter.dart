@@ -1,4 +1,4 @@
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Abstract class representing a network adapter for making HTTP requests.
 abstract class NetworkAdapter {

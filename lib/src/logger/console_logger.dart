@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/logger/I_logger.dart';
 
 /// Console logger

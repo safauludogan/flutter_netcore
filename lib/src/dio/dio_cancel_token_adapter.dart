@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Dip cancel token adapter
 class DioCancelTokenAdapter implements NetcoreCancelToken {

@@ -1,4 +1,4 @@
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Netcore logger
 abstract class ILogger {

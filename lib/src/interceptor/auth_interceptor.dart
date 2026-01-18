@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/mapper/dio_error_mapper.dart';
 
 /// Interceptor to handle authentication and token refresh.

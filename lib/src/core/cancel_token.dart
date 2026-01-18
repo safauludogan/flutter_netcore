@@ -6,5 +6,6 @@ abstract class NetcoreCancelToken {
   /// is cancelled request
   bool get isCancelled;
 
+  /// Token
   dynamic get token;
 }
