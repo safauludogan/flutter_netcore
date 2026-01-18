@@ -1,5 +1,16 @@
+export 'bad_certificate_exception.dart';
+export 'bad_request_exception.dart';
+export 'bad_response_exception.dart';
+export 'cancel_exception.dart';
+export 'conflict_exception.dart';
+export 'connection_error_exception.dart';
+export 'connection_timeout_exception.dart';
 export 'forbidden_exception.dart';
 export 'http_exception.dart';
 export 'not_found_exception.dart';
+export 'receive_timeout_exception.dart';
+export 'send_timeout_exception.dart';
 export 'server_exception.dart';
+export 'socket_exception.dart';
 export 'unauthorized_exception.dart';
+export 'unknown_exception.dart';
