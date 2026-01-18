@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Mixin to handle network errors with optional retry mechanisms.
 mixin NetworkErrorHandler {

@@ -31,5 +31,5 @@ class NetworkRequest {
   final Map<String, dynamic>? queryParameters;
 
   /// Optional headers for the request.
-  final Map<String, String>? headers;
+  final Map<String, dynamic>? headers;
 }

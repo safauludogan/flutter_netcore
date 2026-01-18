@@ -1,4 +1,4 @@
-import 'package:flutter_netcore/src/index.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Abstract class representing a network client for sending requests.
 abstract class INetworkClient {

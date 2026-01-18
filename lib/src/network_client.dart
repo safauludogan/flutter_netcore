@@ -1,6 +1,6 @@
+import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
 import 'package:flutter_netcore/src/exception/adapter_exception.dart';
-import 'package:flutter_netcore/src/index.dart';
 
 class NetworkClient with NetworkErrorHandler implements INetworkClient {
   NetworkClient({
