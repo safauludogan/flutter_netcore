@@ -1,6 +1,7 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_netcore/src/configuration/network_request_config.dart';
+import 'package:dio/dio.dart' hide ProgressCallback;
 import 'package:flutter_netcore/flutter_netcore.dart';
+import 'package:flutter_netcore/src/configuration/network_request_config.dart';
+import 'package:flutter_netcore/src/core/network_progress.dart';
 import 'package:flutter_netcore/src/mapper/dio_error_mapper.dart';
 
 /// Adapter class to integrate Dio with the network client.
@@ -21,6 +22,7 @@ class DioAdapter implements NetworkAdapter {
     NetworkRequest request, {
     TReq? body,
     ResponseType? responseType,
+    NetworkProgress? progress,
   }) async {
     try {
       final options = Options(
@@ -34,6 +36,10 @@ class DioAdapter implements NetworkAdapter {
         queryParameters: request.queryParameters,
         options: options,
         cancelToken: request.cancelToken?.token as CancelToken?,
+        onReceiveProgress: (count, total) =>
+            _emitProgress(progress?.onReceiveProgress, count, total),
+        onSendProgress: (count, total) =>
+            _emitProgress(progress?.onSendProgress, count, total),
       );
       return RawNetworkResponse(
         statusCode: response.statusCode,
@@ -59,6 +65,22 @@ class DioAdapter implements NetworkAdapter {
         ),
       );
     }
+  }
+
+  /// Emit progress bar
+  void _emitProgress(
+    ProgressCallback? callback,
+    int count,
+    int total,
+  ) {
+    if (callback == null) return;
+    final progress = total > 0 ? count / total : 0.0;
+
+    callback(
+      count,
+      total,
+      progress.clamp(0.0, 1.0),
+    );
   }
 
   /// Adds an interceptor to the Dio instance.

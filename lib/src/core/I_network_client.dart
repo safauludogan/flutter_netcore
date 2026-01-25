@@ -8,5 +8,6 @@ abstract class INetworkClient {
     TReq? body,
     Parser<TRes>? parser,
     NetworkRetry? retry,
+    NetworkProgress? progress,
   });
 }
