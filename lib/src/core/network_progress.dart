@@ -7,8 +7,8 @@ typedef ProgressCallback =
     );
 
 /// Progress callback context
-class NetcoreContext {
-  NetcoreContext({
+class NetworkProgress {
+  NetworkProgress({
     required this.onSendProgress,
     required this.onReceiveProgress,
   });

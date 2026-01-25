@@ -43,6 +43,7 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
     TReq? body,
     Parser<TRes>? parser,
     NetworkRetry? retry,
+    NetworkProgress? progress,
   }) async {
     return handleWithRetry<TRes>(
       networkRetry: retry,
@@ -61,14 +62,15 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
         final response = await _adapter!.request<TReq>(
           request,
           body: body,
+          progress: progress,
         );
 
         final data = response.data;
 
         if (parser != null) return parser.parse(data);
 
-        if (TRes == dynamic) return data as TRes;
-        if (TRes is Map<String, dynamic>) return data as TRes;
+        if (TRes.toString() == 'dynamic') return data as TRes;
+        if (TRes.toString() == 'Map<String, dynamic>') return data as TRes;
         if (TRes.toString() == 'void' || TRes == Never) return Future.value();
 
         final copyRequestConfig = requestConfig.copyWith(response: response);

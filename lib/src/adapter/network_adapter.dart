@@ -6,6 +6,7 @@ abstract class NetworkAdapter {
   Future<RawNetworkResponse> request<TReq>(
     NetworkRequest request, {
     TReq? body,
+    NetworkProgress? progress
   });
 
   /// Sets global configuration for the adapter
