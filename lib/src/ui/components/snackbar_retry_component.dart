@@ -1,47 +1,62 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_netcore/src/ui/components/network_retry_component.dart';
+import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Default implementation of [NetworkRetryComponent] using SnackBar.
 class SnackbarRetryComponent extends NetworkRetryComponent {
   SnackbarRetryComponent({
-    required this.context,
-    required this.duration,
-    required this.messageBuilder,
+    required super.context,
+    super.messageBuilder,
+    super.maxManualRetries,
+    this.retry = 'Retry',
+    this.duration,
   });
 
-  /// The BuildContext to show the SnackBar in.
-  final BuildContext context;
-
   /// Duration for which the SnackBar is displayed.
-  final Duration duration;
+  final Duration? duration;
 
-  /// Function to build the error message from the exception.
-  final String Function(Exception)? messageBuilder;
-
+  /// Label for the retry action.
+  final String retry;
   @override
-  void show({
-    required Exception error,
-    required VoidCallback onRetry,
-    required VoidCallback onCancel,
+  Future<RetryDecision> show({
+    required NetCoreException error,
   }) {
     final message =
         messageBuilder?.call(error) ??
         'Network error occurred. Please try again.';
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: duration,
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () {
-            hide();
-            onRetry();
-          },
+    var retryIf = false;
+
+    final snackBar = SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.white,
         ),
-        behavior: SnackBarBehavior.floating,
+      ),
+      duration: duration ?? const Duration(seconds: 4),
+      backgroundColor: Colors.red,
+      action: SnackBarAction(
+        label: retry,
+        textColor: Colors.white,
+        onPressed: () {
+          retryIf = true;
+          hide();
+        },
+      ),
+      behavior: SnackBarBehavior.floating,
+    );
+
+    final controller = ScaffoldMessenger.of(context).showSnackBar(
+      snackBar,
+      snackBarAnimationStyle: const AnimationStyle(
+        curve: Curves.easeInOut,
+        reverseCurve: Curves.easeInOut,
       ),
     );
+
+    return controller.closed.then((reason) {
+      return retryIf ? RetryDecision.retry : RetryDecision.cancel;
+    });
   }
 
   @override
