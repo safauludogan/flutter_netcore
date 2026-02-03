@@ -2,7 +2,7 @@ import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
 import 'package:flutter_netcore/src/exception/adapter_exception.dart';
 
-class NetworkClient with NetworkErrorHandler implements INetworkClient {
+class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
   NetworkClient({
     required NetworkConfig config,
     ILogger? logger,
@@ -32,7 +32,7 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
         message: 'Adapter should be exists',
       );
     }
-    _adapter.setConfig(_config);
+    _adapter.setConfig(_config, _logger);
   }
 
   @override
@@ -51,13 +51,17 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
           _config,
           request,
         );
-        _logger?.logRequest<TReq>(request: request, config: _config);
+        _logger?.logRequest<TReq>(
+          request: request,
+          body: body,
+          config: _config,
+        );
 
         final response = await _adapter!.request<TReq>(
           request,
           body: body,
           progress: progress,
-          requestConfig: requestConfig
+          requestConfig: requestConfig,
         );
 
         _logger?.logResponse(

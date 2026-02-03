@@ -12,7 +12,7 @@ abstract class NetworkAdapter {
   });
 
   /// Sets global configuration for the adapter
-  void setConfig(NetworkConfig config);
+  void setConfig(NetworkConfig config, ILogger? logger);
 
   /// Adds interceptors
   void addInterceptor(dynamic interceptor);

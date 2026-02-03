@@ -13,7 +13,7 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
     Dio? dio,
     TokenRefreshHandler? tokenRefreshHandler,
   }) : _dio = dio ?? Dio(),
-       _tokenRefreshHandler = tokenRefreshHandler {}
+       _tokenRefreshHandler = tokenRefreshHandler;
 
   /// Dio instance used for making HTTP requests.
   final Dio _dio;
@@ -31,8 +31,6 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
     NetworkProgress? progress,
   }) async {
     try {
-      _setupRefreshToken(requestConfig);
-
       final dioOptions = requestConfig.toDioOptions();
       final response = await _dio.request<dynamic>(
         request.path,
@@ -65,19 +63,6 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
     }
   }
 
-  /// Sets the token refresh handler by adding an AuthInterceptor to Dio.
-  /// [tokenRefreshHandler]: The token refresh handler to be set.
-  void _setupRefreshToken(NetworkRequestConfig requestConfig) {
-    if (_tokenRefreshHandler != null) {
-      addInterceptor(
-        AuthInterceptor(
-          tokenRefreshHandler: _tokenRefreshHandler,
-          requestConfig: requestConfig,
-        ),
-      );
-    }
-  }
-
   /// Adds an interceptor to the Dio instance.
   /// [interceptor]: The interceptor to be added.
   @override
@@ -90,7 +75,7 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
   /// Configures the Dio instance with the provided network adapter configuration.
   /// [config]: The network adapter configuration to be applied.
   @override
-  void setConfig(NetworkConfig config) {
+  void setConfig(NetworkConfig config, ILogger? logger) {
     _dio.options = _dio.options.copyWith(
       baseUrl: config.baseUrl,
       headers: {
@@ -101,5 +86,18 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
       receiveTimeout: config.receiveTimeout,
       sendTimeout: config.sendTimeout,
     );
+
+    // Add AuthInterceptor only once (if token refresh handler provided)
+    if (_tokenRefreshHandler != null) {
+      final exists = _dio.interceptors.any((i) => i is AuthInterceptor);
+      if (!exists) {
+        addInterceptor(
+          AuthInterceptor(
+            tokenRefreshHandler: _tokenRefreshHandler,
+            logger: logger,
+          ),
+        );
+      }
+    }
   }
 }
