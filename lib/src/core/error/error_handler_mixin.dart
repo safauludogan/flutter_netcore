@@ -11,7 +11,6 @@ mixin NetworkErrorHandler {
     ILogger? logger,
   }) async {
     /// If no retry configuration is provided, execute the action directly.
-
     logger?.log(
       '🚀 Network action started',
       level: LogLevel.debug,
@@ -46,7 +45,7 @@ mixin NetworkErrorHandler {
         );
 
         return result;
-      } on Exception catch (error) {
+      } on NetCoreException catch (error) {
         /// If manual retry is needed, invoke the callback if provided.
 
         logger?.log(
@@ -54,8 +53,8 @@ mixin NetworkErrorHandler {
           level: LogLevel.warning,
         );
 
-        if (!networkRetry.enableManualRetry ||
-            manualRetryCount >= networkRetry.maxManualRetries) {
+        if (manualRetryCount >=
+            (networkRetry.component?.maxManualRetries ?? 0)) {
           logger?.log(
             '❌ Retry aborted (manual retry disabled or limit reached)',
             level: LogLevel.error,
@@ -66,37 +65,20 @@ mixin NetworkErrorHandler {
         manualRetryCount++;
 
         logger?.log(
-          '👆 Manual retry required ($manualRetryCount/${networkRetry.maxManualRetries})',
+          '''
+          👆 Manual retry required
+          ($manualRetryCount/${networkRetry.component?.maxManualRetries ?? 0})
+          ''',
         );
 
         // Use component if provided
         if (networkRetry.component != null) {
-          final completer = Completer<bool>();
-
-          networkRetry.component!.show(
+          final shouldRetry = await _waitForManualRetry(
+            component: networkRetry.component!,
             error: error,
-            onRetry: () {
-              logger?.log(
-                '🔄 User triggered manual retry',
-              );
-
-              if (!completer.isCompleted) {
-                completer.complete(true);
-              }
-            },
-            onCancel: () {
-              logger?.log(
-                '⛔ User cancelled manual retry',
-                level: LogLevel.warning,
-              );
-
-              if (!completer.isCompleted) {
-                completer.complete(false);
-              }
-            },
+            hideDuration: networkRetry.hideDuration,
+            logger: logger,
           );
-
-          final shouldRetry = await completer.future;
 
           if (!shouldRetry) {
             logger?.log(
@@ -109,24 +91,6 @@ mixin NetworkErrorHandler {
           continue;
         }
 
-        // Fallback to deprecated callback
-        if (networkRetry.onManualRetryNeeded != null) {
-          final completer = Completer<void>();
-
-          networkRetry.onManualRetryNeeded!(error, () async {
-            logger?.log(
-              '🔄 Deprecated manual retry triggered',
-            );
-
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-          });
-
-          await completer.future;
-          continue;
-        }
-
         logger?.log(
           '❌ No manual retry mechanism available',
           level: LogLevel.error,
@@ -134,7 +98,54 @@ mixin NetworkErrorHandler {
 
         // No retry mechanism available
         rethrow;
+      } on Exception catch (e) {
+        logger?.log(
+          '❌ Network action failed with unexpected error: $e',
+          level: LogLevel.error,
+        );
+        rethrow;
       }
     }
+  }
+
+  Future<bool> _waitForManualRetry({
+    required NetworkRetryComponent component,
+    required NetCoreException error,
+    ILogger? logger,
+    Duration? hideDuration,
+  }) async {
+    var completed = false;
+
+    final completer = Completer<bool>();
+
+    Timer? timer;
+    if (hideDuration != null) {
+      timer = Timer(hideDuration, () {
+        if (completed) return;
+        completed = true;
+        component.hide();
+        completer.complete(false);
+      });
+    }
+
+    await component.show(error: error).then((decision) {
+      decision == RetryDecision.retry
+          ? logger?.log(
+              '🔄 User triggered manual retry',
+            )
+          : logger?.log(
+              '⛔ User cancelled manual retry',
+              level: LogLevel.warning,
+            );
+
+      if (completed) return;
+
+      completed = true;
+      timer?.cancel();
+
+      completer.complete(decision == RetryDecision.retry);
+    });
+
+    return completer.future;
   }
 }

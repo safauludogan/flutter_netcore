@@ -1,18 +1,23 @@
 import 'package:dio/dio.dart' hide ProgressCallback;
 import 'package:flutter_netcore/flutter_netcore.dart';
+import 'package:flutter_netcore/src/adapter/adapter_mixin.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
-import 'package:flutter_netcore/src/core/network_progress.dart';
 import 'package:flutter_netcore/src/mapper/dio_error_mapper.dart';
 
 /// Adapter class to integrate Dio with the network client.
 /// This class wraps Dio's functionality to send network requests.
 /// It translates NetworkRequest objects into Dio requests.
-class DioAdapter implements NetworkAdapter {
+class DioAdapter with AdapterMixin implements NetworkAdapter {
   /// Creates a DioAdapter with an optional Dio instance.
-  DioAdapter({Dio? dio}) : _dio = dio ?? Dio();
+  DioAdapter({
+    Dio? dio,
+    TokenRefreshHandler? tokenRefreshHandler,
+  }) : _dio = dio ?? Dio(),
+       _tokenRefreshHandler = tokenRefreshHandler {}
 
   /// Dio instance used for making HTTP requests.
   final Dio _dio;
+  final TokenRefreshHandler? _tokenRefreshHandler;
 
   /// Sends a network request using Dio and returns the response.
   /// [request]: The network request to be sent.
@@ -20,26 +25,25 @@ class DioAdapter implements NetworkAdapter {
   @override
   Future<RawNetworkResponse> request<TReq>(
     NetworkRequest request, {
+    required NetworkRequestConfig requestConfig,
     TReq? body,
     ResponseType? responseType,
     NetworkProgress? progress,
   }) async {
     try {
-      final options = Options(
-        headers: request.headers,
-        method: request.method.name,
-        responseType: responseType ?? ResponseType.json,
-      );
+      _setupRefreshToken(requestConfig);
+
+      final dioOptions = requestConfig.toDioOptions();
       final response = await _dio.request<dynamic>(
         request.path,
         data: body,
         queryParameters: request.queryParameters,
-        options: options,
+        options: dioOptions,
         cancelToken: request.cancelToken?.token as CancelToken?,
         onReceiveProgress: (count, total) =>
-            _emitProgress(progress?.onReceiveProgress, count, total),
+            emitProgress(progress?.onReceiveProgress, count, total),
         onSendProgress: (count, total) =>
-            _emitProgress(progress?.onSendProgress, count, total),
+            emitProgress(progress?.onSendProgress, count, total),
       );
       return RawNetworkResponse(
         statusCode: response.statusCode,
@@ -47,40 +51,31 @@ class DioAdapter implements NetworkAdapter {
         data: response.data,
       );
     } on DioException catch (err) {
-      final requestOptions = err.requestOptions;
-
+      final newRequestConfig = requestConfig.copyWith(
+        response: RawNetworkResponse(
+          statusCode: err.response?.statusCode,
+          headers: err.response?.headers.map,
+          data: err.response?.data,
+        ),
+      );
       throw DioErrorMapper.map(
         err,
-        requestConfig: NetworkRequestConfig(
-          baseUrl: requestOptions.baseUrl,
-          method: requestOptions.method,
-          connectTimeout: requestOptions.connectTimeout,
-          receiveTimeout: requestOptions.receiveTimeout,
-          sendTimeout: requestOptions.sendTimeout,
-          response: RawNetworkResponse(
-            statusCode: err.response?.statusCode,
-            headers: err.response?.headers.map,
-            data: err.response?.data,
-          ),
-        ),
+        requestConfig: newRequestConfig,
       );
     }
   }
 
-  /// Emit progress bar
-  void _emitProgress(
-    ProgressCallback? callback,
-    int count,
-    int total,
-  ) {
-    if (callback == null) return;
-    final progress = total > 0 ? count / total : 0.0;
-
-    callback(
-      count,
-      total,
-      progress.clamp(0.0, 1.0),
-    );
+  /// Sets the token refresh handler by adding an AuthInterceptor to Dio.
+  /// [tokenRefreshHandler]: The token refresh handler to be set.
+  void _setupRefreshToken(NetworkRequestConfig requestConfig) {
+    if (_tokenRefreshHandler != null) {
+      addInterceptor(
+        AuthInterceptor(
+          tokenRefreshHandler: _tokenRefreshHandler,
+          requestConfig: requestConfig,
+        ),
+      );
+    }
   }
 
   /// Adds an interceptor to the Dio instance.
@@ -92,17 +87,6 @@ class DioAdapter implements NetworkAdapter {
     }
   }
 
-  /* /// Add on logger interceptor to the Dio
-  /// [ILogger]: The console logger for dio logger interceptor
-  @override
-  void addLogger(ILogger logger) {
-    _dio.interceptors.add(
-      LogInterceptor(
-        logPrint: (obj) => logger.log(obj.toString()),
-      ),
-    );
-  }*/
-
   /// Configures the Dio instance with the provided network adapter configuration.
   /// [config]: The network adapter configuration to be applied.
   @override
@@ -111,7 +95,7 @@ class DioAdapter implements NetworkAdapter {
       baseUrl: config.baseUrl,
       headers: {
         ..._dio.options.headers,
-        ...?config.headers,
+        ...?config.baseHeaders,
       },
       connectTimeout: config.connectTimeout,
       receiveTimeout: config.receiveTimeout,

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter_netcore/flutter_netcore.dart';
-import 'package:flutter_netcore/src/logger/I_logger.dart';
 
 /// Console logger
 class ConsoleLogger extends ILogger {
@@ -43,8 +42,8 @@ class ConsoleLogger extends ILogger {
       ..writeln('║ Uri: $uri');
 
     final headers = <String, dynamic>{};
-    if (config.headers != null) {
-      headers.addAll(config.headers!);
+    if (config.baseHeaders != null) {
+      headers.addAll(config.baseHeaders!);
     }
     if (request.headers != null) {
       headers.addAll(request.headers!);

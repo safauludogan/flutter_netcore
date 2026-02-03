@@ -13,13 +13,10 @@ class NetworkRequest {
   const NetworkRequest(
     this.path, {
     required this.method,
-    this.cancelToken,
     this.headers,
     this.queryParameters,
+    this.cancelToken,
   });
-
-  /// Net core cancel token
-  final NetcoreCancelToken? cancelToken;
 
   /// The HTTP method of the request.
   final HttpMethod method;
@@ -32,4 +29,7 @@ class NetworkRequest {
 
   /// Optional headers for the request.
   final Map<String, dynamic>? headers;
+
+  /// Net core cancel token
+  final NetcoreCancelToken? cancelToken;
 }
