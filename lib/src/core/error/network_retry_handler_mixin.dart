@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter_netcore/flutter_netcore.dart';
 
 /// Mixin to handle network errors with optional retry mechanisms.
-mixin NetworkErrorHandler {
+mixin NetworkRetryHandlerMixin {
   /// Handles network errors and applies retry logic if specified.
   Future<TRes> handleWithRetry<TRes>({
     required Future<TRes> Function() action,
+    TokenRefreshHandler? tokenRefreshHandler,
     NetworkRetry? networkRetry,
     ILogger? logger,
   }) async {
