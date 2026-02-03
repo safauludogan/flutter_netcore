@@ -7,7 +7,6 @@ abstract class INetworkClient {
     required NetworkRequest request,
     TReq? body,
     Parser<TRes>? parser,
-    NetworkRetry? retry,
     NetworkProgress? progress,
   });
 }

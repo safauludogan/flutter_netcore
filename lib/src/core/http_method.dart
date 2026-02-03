@@ -17,4 +17,16 @@ enum HttpMethod {
 
   /// Http HEAD method.
   head,
+
+  /// Http OPTIONS method.
+  options
+  ;
+
+  /// Retrieves the [HttpMethod] enum value corresponding to the given method name.
+  static HttpMethod getByName(String name) {
+    return HttpMethod.values.firstWhere(
+      (method) => method.name.toLowerCase() == name.toLowerCase(),
+      orElse: () => throw ArgumentError('Invalid HTTP method name: $name'),
+    );
+  }
 }

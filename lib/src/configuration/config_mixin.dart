@@ -4,7 +4,7 @@ mixin ConfigMixin {
   String get baseUrl;
 
   /// queryParameters
-  late Map<String, dynamic> queryParameters;
+  Map<String, dynamic>? queryParameters;
 
   /// Connection timeout
   Duration? get connectTimeout => _connectTimeout;
@@ -16,5 +16,29 @@ mixin ConfigMixin {
       throw StateError('connectTimeout should be positive');
     }
     _connectTimeout = value;
+  }
+
+  /// Optional receive timeout duration.
+  Duration? get receiveTimeout => _receiveTimeout;
+  Duration? _receiveTimeout;
+
+  /// connectionTimeout should be positive
+  set receiveTimeout(Duration? value) {
+    if (value != null && value.isNegative) {
+      throw StateError('receiveTimeout should be positive');
+    }
+    _receiveTimeout = value;
+  }
+
+  /// Optional send timeout duration.
+  Duration? get sendTimeout => _sendTimeout;
+  Duration? _sendTimeout;
+
+  /// connectionTimeout should be positive
+  set sendTimeout(Duration? value) {
+    if (value != null && value.isNegative) {
+      throw StateError('sendTimeout should be positive');
+    }
+    _sendTimeout = value;
   }
 }

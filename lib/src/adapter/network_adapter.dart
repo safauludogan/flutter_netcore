@@ -1,12 +1,14 @@
 import 'package:flutter_netcore/flutter_netcore.dart';
+import 'package:flutter_netcore/src/configuration/network_request_config.dart';
 
 /// Abstract class representing a network adapter for making HTTP requests.
 abstract class NetworkAdapter {
   /// Sends a network request and returns the response.
   Future<RawNetworkResponse> request<TReq>(
     NetworkRequest request, {
+    required NetworkRequestConfig requestConfig,
     TReq? body,
-    NetworkProgress? progress
+    NetworkProgress? progress,
   });
 
   /// Sets global configuration for the adapter

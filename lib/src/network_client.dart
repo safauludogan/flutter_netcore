@@ -6,10 +6,12 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
   NetworkClient({
     required NetworkConfig config,
     ILogger? logger,
+    NetworkRetry? retry,
     NetworkAdapter? adapter,
   }) : _adapter = adapter ?? DioAdapter(),
        _config = config,
-       _logger = logger {
+       _logger = logger,
+       _retry = retry {
     _setup();
   }
 
@@ -22,6 +24,8 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
   /// Console logger
   final ILogger? _logger;
 
+  final NetworkRetry? _retry;
+
   void _setup() {
     if (_adapter == null) {
       throw AdapterException(
@@ -29,12 +33,6 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
       );
     }
     _adapter.setConfig(_config);
-
-    if (_config.tokenRefreshHandler != null) {
-      _adapter.addInterceptor(
-        AuthInterceptor(tokenRefreshHandler: _config.tokenRefreshHandler!),
-      );
-    }
   }
 
   @override
@@ -42,33 +40,35 @@ class NetworkClient with NetworkErrorHandler implements INetworkClient {
     required NetworkRequest request,
     TReq? body,
     Parser<TRes>? parser,
-    NetworkRetry? retry,
     NetworkProgress? progress,
   }) async {
     return handleWithRetry<TRes>(
-      networkRetry: retry,
+      networkRetry: _retry,
       logger: _logger,
       action: () async {
         /// request config
-        final requestConfig = NetworkRequestConfig(
-          baseUrl: _config.baseUrl,
-          method: request.method.name,
-          connectTimeout: _config.connectTimeout,
-          receiveTimeout: _config.receiveTimeout,
-          sendTimeout: _config.sendTimeout,
-          tokenRefreshHandler: _config.tokenRefreshHandler,
+        final requestConfig = NetworkRequestConfig.fromNetworkRequest(
+          _config,
+          request,
         );
+        _logger?.logRequest<TReq>(request: request, config: _config);
 
         final response = await _adapter!.request<TReq>(
           request,
           body: body,
           progress: progress,
+          requestConfig: requestConfig
+        );
+
+        _logger?.logResponse(
+          request: request,
+          config: _config,
+          response: response,
         );
 
         final data = response.data;
 
         if (parser != null) return parser.parse(data);
-
         if (TRes.toString() == 'dynamic') return data as TRes;
         if (TRes.toString() == 'Map<String, dynamic>') return data as TRes;
         if (TRes.toString() == 'void' || TRes == Never) return Future.value();
