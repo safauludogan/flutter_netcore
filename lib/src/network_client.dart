@@ -42,15 +42,17 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
     Parser<TRes>? parser,
     NetworkProgress? progress,
   }) async {
+    final requestConfig = NetworkRequestConfig.fromNetworkRequest(
+      _config,
+      request,
+    );
+    
     return handleWithRetry<TRes>(
       networkRetry: _retry,
+      requestConfig: requestConfig,
       logger: _logger,
       action: () async {
         /// request config
-        final requestConfig = NetworkRequestConfig.fromNetworkRequest(
-          _config,
-          request,
-        );
         _logger?.logRequest<TReq>(
           request: request,
           body: body,
