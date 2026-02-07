@@ -31,7 +31,15 @@ class AuthInterceptor extends Interceptor
       );
 
       try {
+        final requestConfig = NetworkRequestConfig(
+          baseUrl: requestOptions.baseUrl,
+          path: requestOptions.path,
+          method: HttpMethod.getByName(requestOptions.method),
+          queryParameters: requestOptions.queryParameters,
+          headers: requestOptions.headers as Map<String, dynamic>?,
+        );
         await handleWithRetry(
+          requestConfig: requestConfig,
           action: () async {
             try {
               _logger?.log(
@@ -41,20 +49,13 @@ class AuthInterceptor extends Interceptor
 
               final response = err.response;
 
-              final retryRequestConfig =
-                  NetworkRequestConfig(
-                    baseUrl: requestOptions.baseUrl,
-                    path: requestOptions.path,
-                    method: HttpMethod.getByName(requestOptions.method),
-                    queryParameters: requestOptions.queryParameters,
-                    headers: requestOptions.headers as Map<String, dynamic>?,
-                  ).copyWith(
-                    response: RawNetworkResponse(
-                      statusCode: response?.statusCode,
-                      headers: response?.headers.map,
-                      data: response?.data,
-                    ),
-                  );
+              final retryRequestConfig = requestConfig.copyWith(
+                response: RawNetworkResponse(
+                  statusCode: response?.statusCode,
+                  headers: response?.headers.map,
+                  data: response?.data,
+                ),
+              );
 
               final netCoreError = DioErrorMapper.map(
                 err,
@@ -117,6 +118,11 @@ class AuthInterceptor extends Interceptor
                 'error=$e',
                 level: LogLevel.error,
               );
+              final netCoreException = DioErrorMapper.map(
+                e,
+                requestConfig: requestConfig,
+              );
+              _logger?.logError(netCoreException);
               return handler.reject(e);
             }
           },
@@ -130,6 +136,11 @@ class AuthInterceptor extends Interceptor
           'error=$e',
           level: LogLevel.error,
         );
+        final netCoreException = DioErrorMapper.map(
+          e,
+          requestConfig: e.requestConfig!,
+        );
+        _logger?.logError(netCoreException);
 
         return handler.next(err);
       }

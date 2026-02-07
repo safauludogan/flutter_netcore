@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter_netcore/flutter_netcore.dart';
+import 'package:flutter_netcore/src/configuration/network_request_config.dart';
+import 'package:flutter_netcore/src/mapper/dio_error_mapper.dart';
 
 /// Mixin to handle network errors with optional retry mechanisms.
 mixin NetworkRetryHandlerMixin {
   /// Handles network errors and applies retry logic if specified.
   Future<TRes> handleWithRetry<TRes>({
     required Future<TRes> Function() action,
+    required NetworkRequestConfig requestConfig,
     TokenRefreshHandler? tokenRefreshHandler,
     NetworkRetry? networkRetry,
     ILogger? logger,
@@ -20,11 +23,16 @@ mixin NetworkRetryHandlerMixin {
     if (networkRetry == null) {
       try {
         return await action();
-      } catch (e) {
+      } on Exception catch (e) {
         logger?.log(
           '❌ Network action failed (no retry)',
           level: LogLevel.error,
         );
+        final netCoreException = DioErrorMapper.map(
+          e,
+          requestConfig: requestConfig,
+        );
+        logger?.logError(netCoreException);
         rethrow;
       }
     }
@@ -53,6 +61,11 @@ mixin NetworkRetryHandlerMixin {
           '🔁 Network error caught: $error',
           level: LogLevel.warning,
         );
+        final netCoreException = DioErrorMapper.map(
+          error,
+          requestConfig: requestConfig,
+        );
+        logger?.logError(netCoreException);
 
         if (manualRetryCount >=
             (networkRetry.component?.maxManualRetries ?? 0)) {
@@ -65,12 +78,8 @@ mixin NetworkRetryHandlerMixin {
 
         manualRetryCount++;
 
-        logger?.log(
-          '''
-          👆 Manual retry required
-          ($manualRetryCount/${networkRetry.component?.maxManualRetries ?? 0})
-          ''',
-        );
+        final logTryCount = networkRetry.component?.maxManualRetries ?? 0;
+        logger?.log('($manualRetryCount/$logTryCount) 👆 Manual retry required');
 
         // Use component if provided
         if (networkRetry.component != null) {
@@ -99,11 +108,16 @@ mixin NetworkRetryHandlerMixin {
 
         // No retry mechanism available
         rethrow;
-      } on Exception catch (e) {
+      } on Exception catch (error) {
         logger?.log(
-          '❌ Network action failed with unexpected error: $e',
+          '❌ Network action failed with unexpected error: $error',
           level: LogLevel.error,
         );
+        final netCoreException = DioErrorMapper.map(
+          error,
+          requestConfig: requestConfig,
+        );
+        logger?.logError(netCoreException);
         rethrow;
       }
     }
