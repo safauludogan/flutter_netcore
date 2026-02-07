@@ -21,7 +21,8 @@ class ConsoleLogger extends ILogger {
     if (!enabled || level.index < minimumLevel.index) return;
 
     final prefix = _getPrefix(level);
-    developer.log('$prefix $message', name: 'HttpClient');
+    final color = _getColorForLevel(level);
+    developer.log(_colorize('$prefix $message', color), name: 'HttpClient');
   }
 
   @override
@@ -35,11 +36,21 @@ class ConsoleLogger extends ILogger {
     final uri = Uri.parse(config.baseUrl).resolve(request.path).toString();
 
     final buffer = StringBuffer()
-      ..writeln('╔═══════════════════════════════════════════════════')
-      ..writeln('║ REQUEST')
-      ..writeln('╟───────────────────────────────────────────────────')
-      ..writeln('║ Method: ${request.method}')
-      ..writeln('║ Uri: $uri');
+      ..writeln(
+        _colorize(
+          '╔═══════════════════════════════════════════════════',
+          _blue,
+        ),
+      )
+      ..writeln(_colorize('║ REQUEST', _blue))
+      ..writeln(
+        _colorize(
+          '╟───────────────────────────────────────────────────',
+          _blue,
+        ),
+      )
+      ..writeln(_colorize('║ Method: ${request.method}', _blue))
+      ..writeln(_colorize('║ Uri: $uri', _blue));
 
     final headers = <String, dynamic>{};
     if (config.baseHeaders != null) {
@@ -48,18 +59,20 @@ class ConsoleLogger extends ILogger {
     if (request.headers != null) {
       headers.addAll(request.headers!);
     }
-    buffer.writeln('║ Headers:');
+    buffer.writeln(_colorize('║ Headers:', _blue));
     headers.forEach((key, value) {
-      buffer.writeln('║   $key: $value');
+      buffer.writeln(_colorize('║   $key: $value', _blue));
     });
 
     if (body != null) {
       buffer
-        ..writeln('║ Body:')
-        ..writeln('║   ${_formatData(body)}');
+        ..writeln(_colorize('║ Body:', _blue))
+        ..writeln(_formatDataColored(body, _blue));
     }
 
-    buffer.writeln('╚═══════════════════════════════════════════════════');
+    buffer.writeln(
+      _colorize('╚═══════════════════════════════════════════════════', _blue),
+    );
 
     developer.log(buffer.toString(), name: 'HttpClient');
   }
@@ -75,22 +88,34 @@ class ConsoleLogger extends ILogger {
     final uri = Uri.parse(config.baseUrl).resolve(request.path).toString();
 
     final buffer = StringBuffer()
-      ..writeln('╔═══════════════════════════════════════════════════')
-      ..writeln('║ RESPONSE')
-      ..writeln('╟───────────────────────────────────────────────────')
-      ..writeln('║ Method: ${request.method}')
-      ..writeln('║ Uri: $uri')
       ..writeln(
-        '║ Status: ${response.statusCode}',
+        _colorize(
+          '╔═══════════════════════════════════════════════════',
+          _green,
+        ),
+      )
+      ..writeln(_colorize('║ RESPONSE', _green))
+      ..writeln(
+        _colorize(
+          '╟───────────────────────────────────────────────────',
+          _green,
+        ),
+      )
+      ..writeln(_colorize('║ Method: ${request.method}', _green))
+      ..writeln(_colorize('║ Uri: $uri', _green))
+      ..writeln(
+        _colorize('║ Status: ${response.statusCode}', _green),
       );
 
     if (response.data != null) {
       buffer
-        ..writeln('║ Body:')
-        ..writeln('║   ${_formatData(response.data)}');
+        ..writeln(_colorize('║ Body:', _green))
+        ..writeln(_formatDataColored(response.data, _green));
     }
 
-    buffer.writeln('╚═══════════════════════════════════════════════════');
+    buffer.writeln(
+      _colorize('╚═══════════════════════════════════════════════════', _green),
+    );
 
     developer.log(buffer.toString(), name: 'HttpClient');
   }
@@ -100,24 +125,35 @@ class ConsoleLogger extends ILogger {
     if (!enabled) return;
 
     final buffer = StringBuffer()
-      ..writeln('╔═══════════════════════════════════════════════════')
-      ..writeln('║ ERROR')
-      ..writeln('╟───────────────────────────────────────────────────')
-      ..writeln('║ Method: ${error.requestConfig?.method}')
-      ..writeln('║ Uri: ${error.requestConfig?.baseUrl}')
-      ..writeln('║ Type: $error')
-      ..writeln('║ Message: ${error.message}')
-      ..writeln('║ Raw data: ${error.rawData}');
+      ..writeln(
+        _colorize('╔═══════════════════════════════════════════════════', _red),
+      )
+      ..writeln(_colorize('║ ERROR', _red))
+      ..writeln(
+        _colorize('╟───────────────────────────────────────────────────', _red),
+      )
+      ..writeln(_colorize('║ Method: ${error.requestConfig?.method}', _red))
+      ..writeln(_colorize('║ Uri: ${error.requestConfig?.baseUrl}', _red))
+      ..writeln(_colorize('║ Type: $error', _red))
+      ..writeln(_colorize('║ Message: ${error.message}', _red))
+      ..writeln(_colorize('║ Raw data: ${error.rawData}', _red));
 
     if (error.requestConfig?.response != null) {
       buffer
-        ..writeln('║ Status: ${error.requestConfig?.response?.statusCode}')
         ..writeln(
-          '║ Response: ${_formatData(error.requestConfig?.response?.data)}',
+          _colorize(
+            '║ Status: ${error.requestConfig?.response?.statusCode}',
+            _red,
+          ),
+        )
+        ..writeln(
+          _formatDataColored(error.requestConfig?.response?.data, _red),
         );
     }
 
-    buffer.writeln('╚═══════════════════════════════════════════════════');
+    buffer.writeln(
+      _colorize('╚═══════════════════════════════════════════════════', _red),
+    );
 
     developer.log(buffer.toString(), name: 'HttpClient', level: 1000);
   }
@@ -145,6 +181,37 @@ class ConsoleLogger extends ILogger {
       return data.toString();
     } on Exception catch (_) {
       return data.toString();
+    }
+  }
+
+  String _formatDataColored(dynamic data, String color) {
+    final formatted = _formatData(data);
+    return formatted
+        .split('\n')
+        .map((line) => _colorize('║   $line', color))
+        .join('\n');
+  }
+
+  // ANSI color codes
+  static const String _reset = '\u001b[0m';
+  static const String _gray = '\u001b[90m';
+  static const String _blue = '\u001b[34m';
+  static const String _green = '\u001b[32m';
+  static const String _yellow = '\u001b[33m';
+  static const String _red = '\u001b[31m';
+
+  String _colorize(String text, String color) => '$color$text$_reset';
+
+  String _getColorForLevel(LogLevel level) {
+    switch (level) {
+      case LogLevel.debug:
+        return _gray;
+      case LogLevel.info:
+        return _blue;
+      case LogLevel.warning:
+        return _yellow;
+      case LogLevel.error:
+        return _red;
     }
   }
 }
