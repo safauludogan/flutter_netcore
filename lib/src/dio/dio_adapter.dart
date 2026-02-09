@@ -2,7 +2,7 @@ import 'package:dio/dio.dart' hide ProgressCallback;
 import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/adapter/adapter_mixin.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
-import 'package:flutter_netcore/src/mapper/dio_error_mapper.dart';
+import 'package:flutter_netcore/src/mapper/netcore_error_mapper.dart';
 
 /// Adapter class to integrate Dio with the network client.
 /// This class wraps Dio's functionality to send network requests.
@@ -11,13 +11,10 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
   /// Creates a DioAdapter with an optional Dio instance.
   DioAdapter({
     Dio? dio,
-    TokenRefreshHandler? tokenRefreshHandler,
-  }) : _dio = dio ?? Dio(),
-       _tokenRefreshHandler = tokenRefreshHandler;
+  }) : _dio = dio ?? Dio();
 
   /// Dio instance used for making HTTP requests.
   final Dio _dio;
-  final TokenRefreshHandler? _tokenRefreshHandler;
 
   /// Sends a network request using Dio and returns the response.
   /// [request]: The network request to be sent.
@@ -56,7 +53,7 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
           data: err.response?.data,
         ),
       );
-      throw DioErrorMapper.map(
+      throw NetCoreErrorMapper.map(
         err,
         requestConfig: newRequestConfig,
       );
@@ -86,18 +83,5 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
       receiveTimeout: config.receiveTimeout,
       sendTimeout: config.sendTimeout,
     );
-
-    // Add AuthInterceptor only once (if token refresh handler provided)
-    if (_tokenRefreshHandler != null) {
-      final exists = _dio.interceptors.any((i) => i is AuthInterceptor);
-      if (!exists) {
-        addInterceptor(
-          AuthInterceptor(
-            tokenRefreshHandler: _tokenRefreshHandler,
-            logger: logger,
-          ),
-        );
-      }
-    }
   }
 }

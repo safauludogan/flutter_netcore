@@ -3,3 +3,4 @@ export 'cancel_token.dart';
 export 'error/index.dart';
 export 'http_method.dart';
 export 'network_progress.dart';
+export 'typedefs/index.dart';

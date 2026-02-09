@@ -2,51 +2,90 @@ import 'dart:async';
 
 import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
-import 'package:flutter_netcore/src/mapper/dio_error_mapper.dart';
+import 'package:flutter_netcore/src/mapper/netcore_error_mapper.dart';
 
 /// Mixin to handle network errors with optional retry mechanisms.
 mixin NetworkRetryHandlerMixin {
   /// Handles network errors and applies retry logic if specified.
   Future<TRes> handleWithRetry<TRes>({
-    required Future<TRes> Function() action,
+    required Future<TRes> Function(NetworkRequestConfig? requestConfig) action,
     required NetworkRequestConfig requestConfig,
-    TokenRefreshHandler? tokenRefreshHandler,
     NetworkRetry? networkRetry,
     ILogger? logger,
+    RefreshTokenHandler? refreshTokenHandler,
+    RefreshTokenFailHandler? refreshTokenFailHandler,
   }) async {
+    var authRefreshAttempted = false;
+    var manualRetryCount = 0;
+
     /// If no retry configuration is provided, execute the action directly.
     logger?.log(
       '🚀 Network action started',
       level: LogLevel.debug,
     );
 
+    if (requestConfig.skipAuthHandling) {
+      logger?.log(
+        '🚪 Skipping auth & retry handling for this request',
+        level: LogLevel.debug,
+      );
+      return action(requestConfig);
+    }
+
     if (networkRetry == null) {
       try {
-        return await action();
+        return await action(requestConfig);
       } on Exception catch (e) {
         logger?.log(
           '❌ Network action failed (no retry)',
           level: LogLevel.error,
         );
-        final netCoreException = DioErrorMapper.map(
+        final netCoreException = NetCoreErrorMapper.map(
           e,
           requestConfig: requestConfig,
         );
         logger?.logError(netCoreException);
-        rethrow;
+        if (netCoreException.statusCode != 401 || authRefreshAttempted) {
+          rethrow;
+        }
+
+        authRefreshAttempted = true;
+        final refreshedError = await refreshToken(
+          refreshTokenHandler,
+          netCoreException,
+          logger,
+        );
+        // Update request with new token
+        final newRequestConfig = refreshedError?.requestConfig ?? requestConfig;
+
+        logger?.log(
+          '✅ Token refresh succeeded, retrying request',
+          level: LogLevel.debug,
+        );
+        return action(newRequestConfig);
       }
     }
 
-    var manualRetryCount = 0;
-
     final retryExecutor = RetryExecutor(
       policy: networkRetry.policy ?? const RetryPolicy(),
-      retryIf: networkRetry.retryIf,
+      retryIf: (error) {
+        // ✅ ENFORCE: Never auto-retry 401/403
+        if (error is NetCoreException) {
+          if (error.statusCode == 401 || error.statusCode == 403) {
+            return false;
+          }
+        }
+
+        // Then apply custom or default logic
+        return networkRetry.retryIf?.call(error) ?? DefaultRetryDecider.shouldRetry(error);
+      },
     );
 
     while (true) {
       try {
-        final result = await retryExecutor.execute(action);
+        final result = await retryExecutor.execute.call(
+          () async => action.call(null),
+        );
 
         logger?.log(
           '✅ Network action succeeded',
@@ -55,22 +94,77 @@ mixin NetworkRetryHandlerMixin {
 
         return result;
       } on NetCoreException catch (error) {
-        /// If manual retry is needed, invoke the callback if provided.
-
         logger?.log(
           '🔁 Network error caught: $error',
           level: LogLevel.warning,
         );
-        final netCoreException = DioErrorMapper.map(
-          error,
-          requestConfig: requestConfig,
-        );
-        logger?.logError(netCoreException);
 
-        if (manualRetryCount >=
-            (networkRetry.component?.maxManualRetries ?? 0)) {
+        if (error.statusCode == 401 && !authRefreshAttempted) {
+          authRefreshAttempted = true;
+
           logger?.log(
-            '❌ Retry aborted (manual retry disabled or limit reached)',
+            '🔐 Attempting token refresh after 401',
+            level: LogLevel.warning,
+          );
+
+          try {
+            if (refreshTokenHandler == null) {
+              logger?.log(
+                '❌ No refreshTokenHandler provided',
+                level: LogLevel.error,
+              );
+              rethrow;
+            }
+            final refreshedError = await refreshToken(refreshTokenHandler, error, logger);
+
+            // Update request with new token
+            final newRequestConfig = refreshedError?.requestConfig ?? requestConfig;
+
+            logger?.log(
+              '✅ Token refresh succeeded, retrying request',
+              level: LogLevel.debug,
+            );
+
+            return await action(newRequestConfig);
+          } on Exception catch (refreshError) {
+            logger?.log(
+              '❌ Token refresh failed',
+              level: LogLevel.error,
+            );
+
+            try {
+              // Call failure handler
+              await refreshTokenFailHandler?.call(
+                NetCoreErrorMapper.map(
+                  refreshError,
+                  requestConfig: requestConfig,
+                ),
+              );
+            } on Exception catch (e) {
+              final err = NetCoreErrorMapper.map(
+                e,
+                requestConfig: requestConfig,
+              );
+              if (err.statusCode == 401 || err.statusCode == 403) {
+                rethrow;
+              }
+            }
+
+            rethrow; // 401 is terminal after refresh fails
+          }
+        }
+
+        if (!_shouldAllowManualRetry(error)) {
+          logger?.log(
+            '⛔ Manual retry blocked for statusCode=${error.statusCode}',
+            level: LogLevel.warning,
+          );
+          rethrow;
+        }
+
+        if (manualRetryCount >= (networkRetry.component?.maxManualRetries ?? 0)) {
+          logger?.log(
+            '❌ Max manual retries reached',
             level: LogLevel.error,
           );
           rethrow;
@@ -79,7 +173,9 @@ mixin NetworkRetryHandlerMixin {
         manualRetryCount++;
 
         final logTryCount = networkRetry.component?.maxManualRetries ?? 0;
-        logger?.log('($manualRetryCount/$logTryCount) 👆 Manual retry required');
+        logger?.log(
+          '($manualRetryCount/$logTryCount) 👆 Manual retry required',
+        );
 
         // Use component if provided
         if (networkRetry.component != null) {
@@ -113,7 +209,7 @@ mixin NetworkRetryHandlerMixin {
           '❌ Network action failed with unexpected error: $error',
           level: LogLevel.error,
         );
-        final netCoreException = DioErrorMapper.map(
+        final netCoreException = NetCoreErrorMapper.map(
           error,
           requestConfig: requestConfig,
         );
@@ -162,5 +258,28 @@ mixin NetworkRetryHandlerMixin {
     });
 
     return completer.future;
+  }
+
+  bool _shouldAllowManualRetry(NetCoreException e) {
+    final code = e.statusCode;
+    if (code == 401 || code == 403) return false;
+    if (code == null) return true; // network error
+    return code >= 500;
+  }
+
+  /// Refresh manager
+  Future<NetCoreException?> refreshToken(
+    RefreshTokenHandler? refreshTokenHandler,
+    NetCoreException exception,
+    ILogger? logger,
+  ) async {
+    if (refreshTokenHandler == null) {
+      logger?.log(
+        '❌ No refreshTokenHandler provided',
+        level: LogLevel.error,
+      );
+      return exception;
+    }
+    return refreshTokenHandler.call(exception);
   }
 }

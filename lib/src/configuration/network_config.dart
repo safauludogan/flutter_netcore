@@ -5,6 +5,7 @@ class NetworkConfig with ConfigMixin {
   /// Constructor for NetworkClientConfig.
   NetworkConfig({
     required this.baseUrl,
+    this.queryParameters,
     this.baseHeaders,
     this.connectTimeout,
     this.receiveTimeout,
@@ -29,4 +30,8 @@ class NetworkConfig with ConfigMixin {
   /// Optional send timeout duration.
   @override
   final Duration? sendTimeout;
+
+  /// Query parameters
+  @override
+  final Map<String, dynamic>? queryParameters;
 }

@@ -8,6 +8,8 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
     ILogger? logger,
     NetworkRetry? retry,
     NetworkAdapter? adapter,
+    this.refreshTokenFailHandler,
+    this.refreshTokenHandler,
   }) : _adapter = adapter ?? DioAdapter(),
        _config = config,
        _logger = logger,
@@ -46,12 +48,14 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
       _config,
       request,
     );
-    
+
     return handleWithRetry<TRes>(
       networkRetry: _retry,
       requestConfig: requestConfig,
       logger: _logger,
-      action: () async {
+      refreshTokenHandler: refreshTokenHandler,
+      refreshTokenFailHandler: refreshTokenFailHandler,
+      action: (NetworkRequestConfig? config) async {
         /// request config
         _logger?.logRequest<TReq>(
           request: request,
@@ -63,7 +67,7 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
           request,
           body: body,
           progress: progress,
-          requestConfig: requestConfig,
+          requestConfig: config ?? requestConfig,
         );
 
         _logger?.logResponse(
@@ -91,4 +95,10 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
       },
     );
   }
+
+  @override
+  RefreshTokenFailHandler? refreshTokenFailHandler;
+
+  @override
+  RefreshTokenHandler? refreshTokenHandler;
 }
