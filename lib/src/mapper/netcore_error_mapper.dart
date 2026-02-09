@@ -4,7 +4,7 @@ import 'package:flutter_netcore/src/exception/http_exception/no_internet_excepti
 import 'package:flutter_netcore/src/exception/index.dart';
 
 /// Maps DioException to NetCoreException.
-class DioErrorMapper {
+class NetCoreErrorMapper {
   /// Maps a Dio [exception] to a corresponding [NetCoreException].
   static NetCoreException map(
     Exception exception, {

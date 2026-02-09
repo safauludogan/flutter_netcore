@@ -14,6 +14,7 @@ class NetworkRequest {
     this.path, {
     required this.method,
     this.headers,
+    this.extra,
     this.queryParameters,
     this.cancelToken,
   });
@@ -29,6 +30,9 @@ class NetworkRequest {
 
   /// Optional headers for the request.
   final Map<String, dynamic>? headers;
+
+  /// Extra
+  final Map<String, Object?>? extra;
 
   /// Net core cancel token
   final NetcoreCancelToken? cancelToken;

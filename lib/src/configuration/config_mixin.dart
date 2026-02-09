@@ -4,7 +4,7 @@ mixin ConfigMixin {
   String get baseUrl;
 
   /// queryParameters
-  Map<String, dynamic>? queryParameters;
+  Map<String, dynamic>? get queryParameters;
 
   /// Connection timeout
   Duration? get connectTimeout => _connectTimeout;

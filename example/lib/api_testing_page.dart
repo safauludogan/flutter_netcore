@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:example/token_manager.dart';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_netcore/flutter_netcore.dart';
 
 class APITestingPage extends StatefulWidget {
@@ -14,8 +14,7 @@ class APITestingPage extends StatefulWidget {
   State<APITestingPage> createState() => _APITestingPageState();
 }
 
-class _APITestingPageState extends State<APITestingPage>
-    with SingleTickerProviderStateMixin {
+class _APITestingPageState extends State<APITestingPage> with SingleTickerProviderStateMixin {
   final baseUrl = dotenv.env['BASE_URL'] ?? 'default_key';
 
   late TabController _tabController;
@@ -79,10 +78,7 @@ class _APITestingPageState extends State<APITestingPage>
         hideDuration: Duration(seconds: 2),
       ),*/
       retry: NetworkRetry(
-        component: BottomSheetRetryComponent(
-          context: context,
-          maxManualRetries: 1,
-        ),
+        component: BottomSheetRetryComponent(context: context, maxManualRetries: 1),
 
         //hideDuration: Duration(seconds: 2),
       ),
@@ -90,17 +86,21 @@ class _APITestingPageState extends State<APITestingPage>
         component: DialogRetryComponent(context: context),
         hideDuration: Duration(seconds: 2),
       ),*/
-      adapter: DioAdapter(
-        tokenRefreshHandler: TokenManager(
-          context: context,
-          onTokenRefreshed: () {
-            return _refresh();
-          },
-          onTokenRefreshFailed: () {
-            _handleLogout();
-          },
-        ),
-      ),
+      adapter: DioAdapter(),
+      refreshTokenHandler: (exception) async {
+        if (_accessToken.isEmpty) return exception;
+        try {
+          final (newAccessToken, newRefreshToken, response) = await _refresh();
+
+          exception.requestConfig?.headers?['Authorization'] = "Bearer $newAccessToken";
+          return exception;
+        } catch (e) {
+          return exception;
+        }
+      },
+      refreshTokenFailHandler: (exception) async {
+        await _handleLogout();
+      },
       config: NetworkConfig(
         baseUrl: baseUrl,
         baseHeaders: {"Content-Type": "application/json"},
@@ -187,10 +187,7 @@ class _APITestingPageState extends State<APITestingPage>
       errorText = error;
       responseText = '';
     });
-    final snackBar = SnackBar(
-      content: Text(error),
-      backgroundColor: Colors.red,
-    );
+    final snackBar = SnackBar(content: Text(error), backgroundColor: Colors.red);
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
@@ -198,18 +195,15 @@ class _APITestingPageState extends State<APITestingPage>
 
   Future<void> _handleLogin() async {
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'auth/login',
-              method: HttpMethod.post,
-              headers: _getHeaders(),
-            ),
-            body: {
-              'email': _authEmailController.text,
-              'password': _authPasswordController.text,
-            },
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest(
+          'auth/login',
+          //extra: {'__netcore_refresh_attempted': false},
+          method: HttpMethod.post,
+          headers: _getHeaders(),
+        ),
+        body: {'email': _authEmailController.text, 'password': _authPasswordController.text},
+      );
 
       _setResponse(response);
 
@@ -244,15 +238,10 @@ class _APITestingPageState extends State<APITestingPage>
   }
 
   Future<(String?, String?, dynamic response)> _refresh() async {
-    final response = await networkClient
-        .send<Map<String, dynamic>, Map<String, dynamic>>(
-          request: NetworkRequest(
-            'auth/refresh',
-            method: HttpMethod.post,
-            headers: _getHeaders(),
-          ),
-          body: {'refreshToken': _refreshToken},
-        );
+    final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+      request: NetworkRequest('auth/refresh', method: HttpMethod.post, headers: _getHeaders()),
+      body: {'refreshToken': _refreshToken},
+    );
 
     if (response != null && response['Data'] != null) {
       setState(() {
@@ -267,11 +256,7 @@ class _APITestingPageState extends State<APITestingPage>
   Future<void> _handleLogout() async {
     _asyncHandleRequest(() async {
       final response = await networkClient.send<Map<String, dynamic>, void>(
-        request: NetworkRequest(
-          'auth/logout',
-          method: HttpMethod.post,
-          headers: _getHeaders(),
-        ),
+        request: NetworkRequest('auth/logout', method: HttpMethod.post, headers: _getHeaders()  ,   extra: {'skipAuthHandling': true}, ),
       );
 
       _setResponse(response);
@@ -291,11 +276,7 @@ class _APITestingPageState extends State<APITestingPage>
 
     _asyncHandleRequest(() async {
       final response = await networkClient.send<Map<String, dynamic>, void>(
-        request: NetworkRequest(
-          'auth/revoke',
-          method: HttpMethod.post,
-          headers: _getHeaders(),
-        ),
+        request: NetworkRequest('auth/revoke', method: HttpMethod.post, headers: _getHeaders()),
         body: {'refreshToken': _refreshToken},
       );
 
@@ -311,14 +292,9 @@ class _APITestingPageState extends State<APITestingPage>
 
   Future<void> _handleGetUsers() async {
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'users',
-              method: HttpMethod.get,
-              headers: _getHeaders(),
-            ),
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('users', method: HttpMethod.get, headers: _getHeaders()),
+      );
 
       _setResponse(response);
     });
@@ -331,14 +307,9 @@ class _APITestingPageState extends State<APITestingPage>
     }
 
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'users/${_userIdController.text}',
-              method: HttpMethod.get,
-              headers: _getHeaders(),
-            ),
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('users/${_userIdController.text}', method: HttpMethod.get, headers: _getHeaders()),
+      );
 
       _setResponse(response);
     });
@@ -346,19 +317,14 @@ class _APITestingPageState extends State<APITestingPage>
 
   Future<void> _handleCreateUser() async {
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'users',
-              method: HttpMethod.post,
-              headers: _getHeaders(),
-            ),
-            body: {
-              'name': _userNameController.text,
-              'email': _userEmailController.text,
-              'password': _userPasswordController.text,
-            },
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('users', method: HttpMethod.post, headers: _getHeaders()),
+        body: {
+          'name': _userNameController.text,
+          'email': _userEmailController.text,
+          'password': _userPasswordController.text,
+        },
+      );
 
       _setResponse(response);
     });
@@ -371,18 +337,10 @@ class _APITestingPageState extends State<APITestingPage>
     }
 
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'users/${_userIdController.text}',
-              method: HttpMethod.put,
-              headers: _getHeaders(),
-            ),
-            body: {
-              'name': _userNameController.text,
-              'email': _userEmailController.text,
-            },
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('users/${_userIdController.text}', method: HttpMethod.put, headers: _getHeaders()),
+        body: {'name': _userNameController.text, 'email': _userEmailController.text},
+      );
 
       _setResponse(response);
     });
@@ -395,14 +353,9 @@ class _APITestingPageState extends State<APITestingPage>
     }
 
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'users/${_userIdController.text}',
-              method: HttpMethod.delete,
-              headers: _getHeaders(),
-            ),
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('users/${_userIdController.text}', method: HttpMethod.delete, headers: _getHeaders()),
+      );
 
       _setResponse(response);
     });
@@ -415,14 +368,9 @@ class _APITestingPageState extends State<APITestingPage>
     }
 
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'users/${_userIdController.text}/info',
-              method: HttpMethod.get,
-              headers: _getHeaders(),
-            ),
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('users/${_userIdController.text}/info', method: HttpMethod.get, headers: _getHeaders()),
+      );
 
       _setResponse(response);
     });
@@ -432,14 +380,9 @@ class _APITestingPageState extends State<APITestingPage>
 
   Future<void> _handleGetProducts() async {
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'products',
-              method: HttpMethod.get,
-              headers: _getHeaders(),
-            ),
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('products', method: HttpMethod.get, headers: _getHeaders()),
+      );
 
       _setResponse(response);
     });
@@ -447,21 +390,16 @@ class _APITestingPageState extends State<APITestingPage>
 
   Future<void> _handleCreateProduct() async {
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'products',
-              method: HttpMethod.post,
-              headers: _getHeaders(),
-            ),
-            body: {
-              'name': _productNameController.text,
-              'description': 'Test Product',
-              'price': double.parse(_productPriceController.text),
-              'stock': 10,
-              'imageUrl': '',
-            },
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('products', method: HttpMethod.post, headers: _getHeaders()),
+        body: {
+          'name': _productNameController.text,
+          'description': 'Test Product',
+          'price': double.parse(_productPriceController.text),
+          'stock': 10,
+          'imageUrl': '',
+        },
+      );
 
       _setResponse(response);
     });
@@ -533,23 +471,16 @@ class _APITestingPageState extends State<APITestingPage>
 
   Future<void> _handleGetFiles() async {
     _asyncHandleRequest(() async {
-      final response = await networkClient
-          .send<Map<String, dynamic>, Map<String, dynamic>>(
-            request: NetworkRequest(
-              'files',
-              method: HttpMethod.get,
-              headers: _getHeaders(),
-            ),
-          );
+      final response = await networkClient.send<Map<String, dynamic>, Map<String, dynamic>>(
+        request: NetworkRequest('files', method: HttpMethod.get, headers: _getHeaders()),
+      );
 
       _setResponse(response);
 
       if (response != null && response['Data'] != null) {
         final filesList = response['Data'] as List;
         setState(() {
-          uploadedFiles = filesList
-              .map((file) => FileItem.fromJson(file as Map<String, dynamic>))
-              .toList();
+          uploadedFiles = filesList.map((file) => FileItem.fromJson(file as Map<String, dynamic>)).toList();
           selectedFileIdForDownload = null;
           downloadedFileData = null;
           downloadedFileName = null;
@@ -594,11 +525,7 @@ class _APITestingPageState extends State<APITestingPage>
   Future<void> _deleteFile(String fileId) async {
     _asyncHandleRequest(() async {
       final response = await networkClient.send<Map<String, dynamic>, void>(
-        request: NetworkRequest(
-          'files/$fileId',
-          method: HttpMethod.delete,
-          headers: _getHeaders(),
-        ),
+        request: NetworkRequest('files/$fileId', method: HttpMethod.delete, headers: _getHeaders()),
       );
 
       _setResponse(response);
@@ -614,23 +541,11 @@ class _APITestingPageState extends State<APITestingPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Authentication',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('Authentication', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
-          _buildTextField(
-            _authEmailController,
-            'Email',
-            TextInputType.emailAddress,
-          ),
+          _buildTextField(_authEmailController, 'Email', TextInputType.emailAddress),
           const SizedBox(height: 12),
-          _buildTextField(
-            _authPasswordController,
-            'Password',
-            TextInputType.text,
-            true,
-          ),
+          _buildTextField(_authPasswordController, 'Password', TextInputType.text, true),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -650,21 +565,11 @@ class _APITestingPageState extends State<APITestingPage>
           Row(
             children: [
               Expanded(
-                child: _buildButton(
-                  'Logout',
-                  _handleLogout,
-                  enabled: _accessToken.isNotEmpty,
-                  color: Colors.red,
-                ),
+                child: _buildButton('Logout', _handleLogout, enabled: _accessToken.isNotEmpty, color: Colors.red),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildButton(
-                  'Revoke',
-                  _handleRevoke,
-                  enabled: _refreshToken.isNotEmpty,
-                  color: Colors.orange,
-                ),
+                child: _buildButton('Revoke', _handleRevoke, enabled: _refreshToken.isNotEmpty, color: Colors.orange),
               ),
             ],
           ),
@@ -683,82 +588,37 @@ class _APITestingPageState extends State<APITestingPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'User Management',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('User Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           _buildTextField(_userIdController, 'User ID'),
           const SizedBox(height: 12),
           _buildTextField(_userNameController, 'Name'),
           const SizedBox(height: 12),
-          _buildTextField(
-            _userEmailController,
-            'Email',
-            TextInputType.emailAddress,
-          ),
+          _buildTextField(_userEmailController, 'Email', TextInputType.emailAddress),
           const SizedBox(height: 12),
-          _buildTextField(
-            _userPasswordController,
-            'Password',
-            TextInputType.text,
-            true,
-          ),
+          _buildTextField(_userPasswordController, 'Password', TextInputType.text, true),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(child: _buildButton('Get All', _handleGetUsers)),
               const SizedBox(width: 8),
-              Expanded(
-                child: _buildButton(
-                  'Get One',
-                  _handleGetUser,
-                  enabled: _userIdController.text.isNotEmpty,
-                ),
-              ),
+              Expanded(child: _buildButton('Get One', _handleGetUser)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: _buildButton(
-                  'Create',
-                  _handleCreateUser,
-                  color: Colors.green,
-                ),
-              ),
+              Expanded(child: _buildButton('Create', _handleCreateUser, color: Colors.green)),
               const SizedBox(width: 8),
-              Expanded(
-                child: _buildButton(
-                  'Update',
-                  _handleUpdateUser,
-                  enabled: _userIdController.text.isNotEmpty,
-                  color: Colors.amber,
-                ),
-              ),
+              Expanded(child: _buildButton('Update', _handleUpdateUser, color: Colors.amber)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: _buildButton(
-                  'Delete',
-                  _handleDeleteUser,
-                  enabled: _userIdController.text.isNotEmpty,
-                  color: Colors.red,
-                ),
-              ),
+              Expanded(child: _buildButton('Delete', _handleDeleteUser, color: Colors.red)),
               const SizedBox(width: 8),
-              Expanded(
-                child: _buildButton(
-                  'Get Info',
-                  _handleGetUserInfo,
-                  enabled: _userIdController.text.isNotEmpty,
-                  color: Colors.purple,
-                ),
-              ),
+              Expanded(child: _buildButton('Get Info', _handleGetUserInfo, color: Colors.purple)),
             ],
           ),
         ],
@@ -772,30 +632,17 @@ class _APITestingPageState extends State<APITestingPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Product Management',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('Product Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           _buildTextField(_productNameController, 'Product Name'),
           const SizedBox(height: 12),
-          _buildTextField(
-            _productPriceController,
-            'Product Price',
-            TextInputType.number,
-          ),
+          _buildTextField(_productPriceController, 'Product Price', TextInputType.number),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(child: _buildButton('Get Products', _handleGetProducts)),
               const SizedBox(width: 8),
-              Expanded(
-                child: _buildButton(
-                  'Create',
-                  _handleCreateProduct,
-                  color: Colors.green,
-                ),
-              ),
+              Expanded(child: _buildButton('Create', _handleCreateProduct, color: Colors.green)),
             ],
           ),
         ],
@@ -809,21 +656,14 @@ class _APITestingPageState extends State<APITestingPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'File Operations',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('File Operations', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           // File picker
           GestureDetector(
             onTap: _selectFile,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.blue,
-                  style: BorderStyle.solid,
-                  width: 2,
-                ),
+                border: Border.all(color: Colors.blue, style: BorderStyle.solid, width: 2),
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.all(24),
@@ -832,8 +672,7 @@ class _APITestingPageState extends State<APITestingPage>
                   const Icon(Icons.cloud_upload, size: 48, color: Colors.blue),
                   const SizedBox(height: 12),
                   Text(
-                    selectedFile?.path.split('/').last ??
-                        'Click to select file',
+                    selectedFile?.path.split('/').last ?? 'Click to select file',
                     style: const TextStyle(fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
@@ -845,12 +684,7 @@ class _APITestingPageState extends State<APITestingPage>
           Row(
             children: [
               Expanded(
-                child: _buildButton(
-                  'Upload',
-                  _handleFileUpload,
-                  enabled: selectedFile != null,
-                  color: Colors.green,
-                ),
+                child: _buildButton('Upload', _handleFileUpload, enabled: selectedFile != null, color: Colors.green),
               ),
               const SizedBox(width: 8),
               Expanded(child: _buildButton('Get Files', _handleGetFiles)),
@@ -859,10 +693,7 @@ class _APITestingPageState extends State<APITestingPage>
           // Files list
           if (uploadedFiles.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text(
-              'Your Files',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            const Text('Your Files', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
@@ -873,34 +704,17 @@ class _APITestingPageState extends State<APITestingPage>
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: uploadedFiles.length,
-                separatorBuilder: (context, index) =>
-                    Divider(height: 1, color: Colors.grey[300]),
+                separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey[300]),
                 itemBuilder: (context, index) {
                   final file = uploadedFiles[index];
                   return ListTile(
-                    leading: Icon(
-                      _getFileIcon(file.contentType),
-                      color: Colors.blue,
-                    ),
-                    title: Text(
-                      file.originalFileName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      '${(file.size / 1024).toStringAsFixed(2)} KB',
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    leading: Icon(_getFileIcon(file.contentType), color: Colors.blue),
+                    title: Text(file.originalFileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text('${(file.size / 1024).toStringAsFixed(2)} KB', style: const TextStyle(fontSize: 12)),
                     trailing: PopupMenuButton(
                       itemBuilder: (context) => [
-                        PopupMenuItem(
-                          child: const Text('Download'),
-                          onTap: () => _downloadFile(file.id),
-                        ),
-                        PopupMenuItem(
-                          child: const Text('Delete'),
-                          onTap: () => _deleteFile(file.id),
-                        ),
+                        PopupMenuItem(child: const Text('Download'), onTap: () => _downloadFile(file.id)),
+                        PopupMenuItem(child: const Text('Delete'), onTap: () => _deleteFile(file.id)),
                       ],
                     ),
                   );
@@ -917,10 +731,8 @@ class _APITestingPageState extends State<APITestingPage>
     if (contentType.contains('image')) return Icons.image;
     if (contentType.contains('video')) return Icons.video_library;
     if (contentType.contains('pdf')) return Icons.picture_as_pdf;
-    if (contentType.contains('word') || contentType.contains('document'))
-      return Icons.description;
-    if (contentType.contains('sheet') || contentType.contains('excel'))
-      return Icons.table_chart;
+    if (contentType.contains('word') || contentType.contains('document')) return Icons.description;
+    if (contentType.contains('sheet') || contentType.contains('excel')) return Icons.table_chart;
     return Icons.insert_drive_file;
   }
 
@@ -930,47 +742,21 @@ class _APITestingPageState extends State<APITestingPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Testing Parameters',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('Testing Parameters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
-          const Text(
-            'Delay (ms)',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
+          const Text('Delay (ms)', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          _buildTextField(
-            _delayController,
-            'Delay in milliseconds',
-            TextInputType.number,
-          ),
+          _buildTextField(_delayController, 'Delay in milliseconds', TextInputType.number),
           const SizedBox(height: 4),
-          const Text(
-            'Simulates network delay',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          const Text('Simulates network delay', style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 16),
-          const Text(
-            'Error Rate (%)',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
+          const Text('Error Rate (%)', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          _buildTextField(
-            _errorRateController,
-            'Error probability (0-100)',
-            TextInputType.number,
-          ),
+          _buildTextField(_errorRateController, 'Error probability (0-100)', TextInputType.number),
           const SizedBox(height: 4),
-          const Text(
-            'Random error probability',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          const Text('Random error probability', style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 16),
-          const Text(
-            'Simulate Error',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
+          const Text('Simulate Error', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildErrorDropdown(),
           const SizedBox(height: 20),
@@ -986,39 +772,24 @@ class _APITestingPageState extends State<APITestingPage>
               children: [
                 Text(
                   'ℹ️ How to use:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green),
                 ),
                 SizedBox(height: 8),
                 Text(
                   '• Set delay to test loading states',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black54),
                 ),
                 Text(
                   '• Set error rate to simulate random failures',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black54),
                 ),
                 Text(
                   '• Select specific error to test error handling',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black54),
                 ),
                 Text(
                   '• These settings apply to all subsequent requests',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black54),
                 ),
               ],
             ),
@@ -1041,20 +812,12 @@ class _APITestingPageState extends State<APITestingPage>
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
     );
   }
 
-  Widget _buildButton(
-    String label,
-    VoidCallback onPressed, {
-    bool enabled = true,
-    Color color = Colors.blue,
-  }) {
+  Widget _buildButton(String label, VoidCallback onPressed, {bool enabled = true, Color color = Colors.blue}) {
     return ElevatedButton(
       onPressed: (enabled && !isLoading) ? onPressed : null,
       style: ElevatedButton.styleFrom(
@@ -1064,11 +827,7 @@ class _APITestingPageState extends State<APITestingPage>
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-          overflow: TextOverflow.ellipsis,
-        ),
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -1093,10 +852,7 @@ class _APITestingPageState extends State<APITestingPage>
       },
       decoration: InputDecoration(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
     );
   }
@@ -1114,11 +870,7 @@ class _APITestingPageState extends State<APITestingPage>
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-              color: Colors.red,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.red),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1127,11 +879,7 @@ class _APITestingPageState extends State<APITestingPage>
                 : token.length > 50
                 ? '${token.substring(0, 50)}...'
                 : token,
-            style: TextStyle(
-              fontSize: 11,
-              color: token.isEmpty ? Colors.grey : Colors.black,
-              fontFamily: 'monospace',
-            ),
+            style: TextStyle(fontSize: 11, color: token.isEmpty ? Colors.grey : Colors.black, fontFamily: 'monospace'),
           ),
         ],
       ),
@@ -1179,10 +927,7 @@ class _APITestingPageState extends State<APITestingPage>
           // File preview section
           if (downloadedFileData != null && downloadedFileName != null) ...[
             Divider(color: Colors.grey[300]),
-            const Text(
-              'File Preview:',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-            ),
+            const Text('File Preview:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 8),
             _buildFilePreview(),
             const SizedBox(height: 12),
@@ -1222,10 +967,7 @@ class _APITestingPageState extends State<APITestingPage>
         fileName.endsWith('.jpeg') ||
         fileName.endsWith('.png') ||
         fileName.endsWith('.gif');
-    final isVideo =
-        fileName.endsWith('.mp4') ||
-        fileName.endsWith('.avi') ||
-        fileName.endsWith('.mov');
+    final isVideo = fileName.endsWith('.mp4') || fileName.endsWith('.avi') || fileName.endsWith('.mov');
 
     if (isImage) {
       return Container(
@@ -1233,11 +975,7 @@ class _APITestingPageState extends State<APITestingPage>
           border: Border.all(color: Colors.grey[300]!),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Image.memory(
-          downloadedFileData!,
-          fit: BoxFit.contain,
-          height: 200,
-        ),
+        child: Image.memory(downloadedFileData!, fit: BoxFit.contain, height: 200),
       );
     } else if (isVideo) {
       return Container(
@@ -1253,11 +991,7 @@ class _APITestingPageState extends State<APITestingPage>
             children: [
               const Icon(Icons.video_library, size: 48, color: Colors.grey),
               const SizedBox(height: 8),
-              Text(
-                downloadedFileName!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text(downloadedFileName!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
               const SizedBox(height: 4),
               Text(
                 '${(downloadedFileData!.length / 1024).toStringAsFixed(2)} KB',
@@ -1280,11 +1014,7 @@ class _APITestingPageState extends State<APITestingPage>
             children: [
               const Icon(Icons.insert_drive_file, size: 48, color: Colors.grey),
               const SizedBox(height: 8),
-              Text(
-                downloadedFileName!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text(downloadedFileName!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
               const SizedBox(height: 4),
               Text(
                 '${(downloadedFileData!.length / 1024).toStringAsFixed(2)} KB',
@@ -1319,13 +1049,7 @@ class _APITestingPageState extends State<APITestingPage>
             flex: 1,
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildAuthTab(),
-                _buildUsersTab(),
-                _buildProductsTab(),
-                _buildFilesTab(),
-                _buildTestingTab(),
-              ],
+              children: [_buildAuthTab(), _buildUsersTab(), _buildProductsTab(), _buildFilesTab(), _buildTestingTab()],
             ),
           ),
           Expanded(

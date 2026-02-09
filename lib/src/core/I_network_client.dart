@@ -9,4 +9,10 @@ abstract class INetworkClient {
     Parser<TRes>? parser,
     NetworkProgress? progress,
   });
+
+  /// Optional handler for refreshing tokens when authentication fails.
+  RefreshTokenHandler? refreshTokenHandler;
+
+  /// Optional handler for handling token refresh failures.
+  RefreshTokenFailHandler? refreshTokenFailHandler;
 }

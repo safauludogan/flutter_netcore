@@ -14,6 +14,7 @@ class NetworkRequestConfig with ConfigMixin {
     this.connectTimeout,
     this.receiveTimeout,
     this.sendTimeout,
+    this.extra,
     Map<String, dynamic>? headers,
   }) : headers = headers?.map((k, v) => MapEntry(k, v?.toString() ?? ''));
 
@@ -27,11 +28,12 @@ class NetworkRequestConfig with ConfigMixin {
   @override
   final String baseUrl;
 
-  @override
-  Map<String, dynamic>? queryParameters;
-
   /// Path for the network request.
   final String path;
+
+  /// Query parameters
+  @override
+  final Map<String, dynamic>? queryParameters;
 
   /// Full URL
   /// Combines baseUrl and path to form the full URL.
@@ -62,6 +64,12 @@ class NetworkRequestConfig with ConfigMixin {
   /// Headers
   final Map<String, String>? headers;
 
+  /// Extra
+  final Map<String, Object?>? extra;
+
+  /// Skip auth handling
+  bool get skipAuthHandling => extra?['skipAuthHandling'] == true;
+
   /// Copy with factory class
   NetworkRequestConfig copyWith({
     String? baseUrl,
@@ -74,6 +82,7 @@ class NetworkRequestConfig with ConfigMixin {
     Duration? receiveTimeout,
     Duration? sendTimeout,
     Map<String, String>? headers,
+    Map<String, Object?>? extra,
   }) {
     return NetworkRequestConfig(
       baseUrl: baseUrl ?? this.baseUrl,
@@ -86,6 +95,7 @@ class NetworkRequestConfig with ConfigMixin {
       progress: progress ?? this.progress,
       response: response ?? this.response,
       headers: headers ?? this.headers,
+      extra: extra ?? this.extra,
     );
   }
 
@@ -94,6 +104,7 @@ class NetworkRequestConfig with ConfigMixin {
     return Options(
       method: method.name,
       headers: headers,
+      extra: extra,
       responseType: responseType,
       sendTimeout: sendTimeout,
       receiveTimeout: receiveTimeout,
@@ -110,6 +121,7 @@ class NetworkRequestConfig with ConfigMixin {
       baseUrl: baseConfig.baseUrl,
       path: request.path,
       method: request.method,
+      extra: request.extra,
       queryParameters: request.queryParameters,
       headers: request.headers?.map((k, v) => MapEntry(k, v?.toString() ?? '')),
       connectTimeout: baseConfig.connectTimeout,
@@ -132,7 +144,8 @@ class NetworkRequestConfig with ConfigMixin {
           sendTimeout: $sendTimeout,
           progress: $progress,
           response: $response,
-          headers: $headers
+          headers: $headers,
+          extra: $extra,
         )
         ''';
   }
