@@ -9,11 +9,10 @@ export 'src/core/index.dart';
 export 'src/dio/index.dart';
 // #ERROR & EXCEPTION HANDLING
 export 'src/exception/index.dart';
-// #INTERCEPTORS – REQUEST / RESPONSE PIPELINE
-//---
-
 // #LOGGING & OBSERVABILITY
 export 'src/logger/index.dart';
+// #NETWORK
+export 'src/network/index.dart';
 export 'src/network_client.dart';
 // #PARSING & SERIALIZATION
 export 'src/parser/index.dart';

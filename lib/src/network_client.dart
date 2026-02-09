@@ -26,7 +26,11 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
   /// Console logger
   final ILogger? _logger;
 
+  /// Retry
   final NetworkRetry? _retry;
+
+  /// Netcore connectivity
+  final _connectivity = NetcoreConnectivity();
 
   void _setup() {
     if (_adapter == null) {
@@ -48,6 +52,13 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
       _config,
       request,
     );
+
+    final result = await _connectivity.checkConnection();
+    if (result == NetcoreConnectivityResult.offline) {
+      throw NoInternetException(
+        requestConfig: requestConfig,
+      );
+    }
 
     return handleWithRetry<TRes>(
       networkRetry: _retry,

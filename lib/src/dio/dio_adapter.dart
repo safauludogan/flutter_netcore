@@ -31,7 +31,9 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
     try {
       final dioOptions = requestConfig.toDioOptions();
       final newDioOptions = dioOptions.copyWith(
-        responseType: ResponseType.values.firstWhere((r) => r.name == responseType?.name),
+        responseType: ResponseType.values.firstWhere(
+          (r) => r.name == (responseType == null ? ResponseType.json.name : responseType.name),
+        ),
       );
       final response = await _dio.request<dynamic>(
         request.path,

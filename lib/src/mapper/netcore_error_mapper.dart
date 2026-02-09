@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
-import 'package:flutter_netcore/src/exception/http_exception/no_internet_exception.dart';
 import 'package:flutter_netcore/src/exception/index.dart';
 
 /// Maps DioException to NetCoreException.
