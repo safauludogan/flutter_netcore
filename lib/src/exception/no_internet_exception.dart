@@ -5,7 +5,7 @@ class NoInternetException extends NetCoreException {
   /// Creates a [NoInternetException] with the given details.
   NoInternetException({
     required super.requestConfig,
-    super.message = 'No Internet',
+    super.message = 'No Internet Connection',
     super.rawData,
     super.stackTrace,
     super.statusCode,

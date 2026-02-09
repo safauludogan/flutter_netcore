@@ -110,6 +110,19 @@ class _APITestingPageState extends State<APITestingPage> with SingleTickerProvid
       ),
       logger: ConsoleLogger(enabled: true, minimumLevel: LogLevel.debug),
     );
+
+    final connectivity = NetcoreConnectivity();
+
+    connectivity.handleNetworkChange((result) {
+      switch (result) {
+        case NetcoreConnectivityResult.online:
+          debugPrint('Network connected');
+          break;
+        case NetcoreConnectivityResult.offline:
+          debugPrint('Network disconnected');
+          break;
+      }
+    });
   }
 
   @override
@@ -256,7 +269,12 @@ class _APITestingPageState extends State<APITestingPage> with SingleTickerProvid
   Future<void> _handleLogout() async {
     _asyncHandleRequest(() async {
       final response = await networkClient.send<Map<String, dynamic>, void>(
-        request: NetworkRequest('auth/logout', method: HttpMethod.post, headers: _getHeaders()  ,   extra: {'skipAuthHandling': true}, ),
+        request: NetworkRequest(
+          'auth/logout',
+          method: HttpMethod.post,
+          headers: _getHeaders(),
+          extra: {'skipAuthHandling': true},
+        ),
       );
 
       _setResponse(response);
