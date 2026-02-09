@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_netcore/src/core/index.dart';
+import 'package:flutter_netcore/src/core/netcore_response_type.dart';
 
 /// Represents a network request with method, path, body, headers, and query parameters.
 /// [method] - The HTTP method of the request.
@@ -13,6 +14,7 @@ class NetworkRequest {
   const NetworkRequest(
     this.path, {
     required this.method,
+    this.responseType = NetcoreResponseType.json,
     this.headers,
     this.extra,
     this.queryParameters,
@@ -36,4 +38,7 @@ class NetworkRequest {
 
   /// Net core cancel token
   final NetcoreCancelToken? cancelToken;
+
+  /// Netcore response type
+  final NetcoreResponseType responseType;
 }
