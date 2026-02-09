@@ -2,5 +2,6 @@ export 'I_network_client.dart';
 export 'cancel_token.dart';
 export 'error/index.dart';
 export 'http_method.dart';
+export 'netcore_response_type.dart';
 export 'network_progress.dart';
 export 'typedefs/index.dart';

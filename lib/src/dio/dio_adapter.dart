@@ -2,6 +2,7 @@ import 'package:dio/dio.dart' hide ProgressCallback;
 import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/adapter/adapter_mixin.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
+import 'package:flutter_netcore/src/core/netcore_response_type.dart';
 import 'package:flutter_netcore/src/mapper/netcore_error_mapper.dart';
 
 /// Adapter class to integrate Dio with the network client.
@@ -24,21 +25,22 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
     NetworkRequest request, {
     required NetworkRequestConfig requestConfig,
     TReq? body,
-    ResponseType? responseType,
+    NetcoreResponseType? responseType,
     NetworkProgress? progress,
   }) async {
     try {
       final dioOptions = requestConfig.toDioOptions();
+      final newDioOptions = dioOptions.copyWith(
+        responseType: ResponseType.values.firstWhere((r) => r.name == responseType?.name),
+      );
       final response = await _dio.request<dynamic>(
         request.path,
         data: body,
         queryParameters: request.queryParameters,
-        options: dioOptions,
+        options: newDioOptions,
         cancelToken: request.cancelToken?.token as CancelToken?,
-        onReceiveProgress: (count, total) =>
-            emitProgress(progress?.onReceiveProgress, count, total),
-        onSendProgress: (count, total) =>
-            emitProgress(progress?.onSendProgress, count, total),
+        onReceiveProgress: (count, total) => emitProgress(progress?.onReceiveProgress, count, total),
+        onSendProgress: (count, total) => emitProgress(progress?.onSendProgress, count, total),
       );
       return RawNetworkResponse(
         statusCode: response.statusCode,
