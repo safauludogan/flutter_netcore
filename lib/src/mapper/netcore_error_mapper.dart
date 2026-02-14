@@ -57,9 +57,8 @@ class NetCoreErrorMapper {
     required NetworkRequestConfig requestConfig,
   }) {
     final statusCode = exception.response?.statusCode;
-    final data = exception.response?.data;
 
-    final serverMessage = _extractMessage(data);
+    final serverMessage = _extractMessage(exception);
 
     if (statusCode != null) {
       if (statusCode >= 500 && statusCode <= 599) {
@@ -110,16 +109,17 @@ class NetCoreErrorMapper {
     );
   }
 
-  static String? _extractMessage(dynamic data) {
-    if (data == null) return null;
+  static String? _extractMessage(DioException err) {
+    final msg = err.response?.data ?? err.message;  
+    if (msg == null) return null;
 
-    if (data is String) return data;
+    if (msg is String) return msg;
 
-    if (data is Map<String, dynamic>) {
+    if (msg is Map<String, dynamic>) {
       final candidates = ['message', 'error', 'detail', 'title'];
 
       for (final key in candidates) {
-        final value = data[key];
+        final value = msg[key];
         if (value != null) return value.toString();
       }
     }
