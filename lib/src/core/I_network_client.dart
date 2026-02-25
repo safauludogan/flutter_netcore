@@ -15,4 +15,7 @@ abstract class INetworkClient {
 
   /// Optional handler for handling token refresh failures.
   RefreshTokenFailHandler? refreshTokenFailHandler;
+
+  /// Set retry component
+  void setRetry(NetworkRetry retry);
 }

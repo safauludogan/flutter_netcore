@@ -2,7 +2,6 @@ import 'package:dio/dio.dart' hide ProgressCallback;
 import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/adapter/adapter_mixin.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
-import 'package:flutter_netcore/src/core/netcore_response_type.dart';
 import 'package:flutter_netcore/src/mapper/netcore_error_mapper.dart';
 
 /// Adapter class to integrate Dio with the network client.
@@ -12,7 +11,12 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
   /// Creates a DioAdapter with an optional Dio instance.
   DioAdapter({
     Dio? dio,
-  }) : _dio = dio ?? Dio();
+    Interceptor? interceptor,
+  }) : _dio = dio ?? Dio() {
+    if (interceptor != null) {
+      addInterceptor(interceptor);
+    }
+  }
 
   /// Dio instance used for making HTTP requests.
   final Dio _dio;

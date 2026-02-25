@@ -18,11 +18,20 @@ class NetCoreErrorMapper {
 
     switch (exception.type) {
       case DioExceptionType.connectionTimeout:
-        return ConnectionTimeoutException(requestConfig: requestConfig);
+        return ConnectionTimeoutException(
+          requestConfig: requestConfig,
+          statusCode: exception.response?.statusCode,
+        );
       case DioExceptionType.sendTimeout:
-        return SendTimeoutException(requestConfig: requestConfig);
+        return SendTimeoutException(
+          requestConfig: requestConfig,
+          statusCode: exception.response?.statusCode,
+        );
       case DioExceptionType.receiveTimeout:
-        return ReceiveTimeoutException(requestConfig: requestConfig);
+        return ReceiveTimeoutException(
+          requestConfig: requestConfig,
+          statusCode: exception.response?.statusCode,
+        );
       case DioExceptionType.badCertificate:
         return BadCertificateException(requestConfig: requestConfig);
       case DioExceptionType.badResponse:
@@ -110,7 +119,7 @@ class NetCoreErrorMapper {
   }
 
   static String? _extractMessage(DioException err) {
-    final msg = err.response?.data ?? err.message;  
+    final msg = err.response?.data ?? err.message;
     if (msg == null) return null;
 
     if (msg is String) return msg;

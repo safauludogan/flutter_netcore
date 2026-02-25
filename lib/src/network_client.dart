@@ -27,7 +27,7 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
   final ILogger? _logger;
 
   /// Retry
-  final NetworkRetry? _retry;
+  NetworkRetry? _retry;
 
   /// Netcore connectivity
   final _connectivity = NetcoreConnectivity();
@@ -107,9 +107,15 @@ class NetworkClient with NetworkRetryHandlerMixin implements INetworkClient {
     );
   }
 
+  /// Refresh token handler
+  @override
+  RefreshTokenHandler? refreshTokenHandler;
+
+  /// Refresh token failed handler
   @override
   RefreshTokenFailHandler? refreshTokenFailHandler;
 
+  /// Set retry component
   @override
-  RefreshTokenHandler? refreshTokenHandler;
+  void setRetry(NetworkRetry retry) => _retry = retry;
 }
