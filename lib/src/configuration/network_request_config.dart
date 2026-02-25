@@ -18,6 +18,29 @@ class NetworkRequestConfig with ConfigMixin {
     Map<String, dynamic>? headers,
   }) : headers = headers?.map((k, v) => MapEntry(k, v?.toString() ?? ''));
 
+  // Factory from existing NetworkRequest + global NetworkConfig
+  factory NetworkRequestConfig.fromNetworkRequest(
+    NetworkConfig baseConfig,
+    NetworkRequest request, {
+    NetworkProgress? progress,
+  }) {
+    return NetworkRequestConfig(
+      baseUrl: baseConfig.baseUrl,
+      path: request.path,
+      method: request.method,
+      extra: request.extra,
+      queryParameters: request.queryParameters,
+      headers: {
+        ...?baseConfig.baseHeaders?.map((k, v) => MapEntry(k, v?.toString() ?? '')),
+        ...?request.headers?.map((k, v) => MapEntry(k, v?.toString() ?? '')),
+      },
+      connectTimeout: baseConfig.connectTimeout,
+      receiveTimeout: baseConfig.receiveTimeout,
+      sendTimeout: baseConfig.sendTimeout,
+      progress: progress,
+    );
+  }
+
   /// Response
   final RawNetworkResponse? response;
 
@@ -108,26 +131,6 @@ class NetworkRequestConfig with ConfigMixin {
       responseType: responseType,
       sendTimeout: sendTimeout,
       receiveTimeout: receiveTimeout,
-    );
-  }
-
-  // Factory from existing NetworkRequest + global NetworkConfig
-  factory NetworkRequestConfig.fromNetworkRequest(
-    NetworkConfig baseConfig,
-    NetworkRequest request, {
-    NetworkProgress? progress,
-  }) {
-    return NetworkRequestConfig(
-      baseUrl: baseConfig.baseUrl,
-      path: request.path,
-      method: request.method,
-      extra: request.extra,
-      queryParameters: request.queryParameters,
-      headers: request.headers?.map((k, v) => MapEntry(k, v?.toString() ?? '')),
-      connectTimeout: baseConfig.connectTimeout,
-      receiveTimeout: baseConfig.receiveTimeout,
-      sendTimeout: baseConfig.sendTimeout,
-      progress: progress,
     );
   }
 

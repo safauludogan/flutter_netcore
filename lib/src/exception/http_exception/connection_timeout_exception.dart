@@ -5,10 +5,11 @@ class ConnectionTimeoutException extends NetCoreException {
   /// Creates a [ConnectionTimeoutException with the given details.
   ConnectionTimeoutException({
     required super.requestConfig,
+    int? statusCode,
     super.message = 'Connection Timeout',
     super.rawData,
     super.stackTrace,
   }) : super(
-         statusCode: 408,
+         statusCode: statusCode ?? 408,
        );
 }

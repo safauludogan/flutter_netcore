@@ -5,10 +5,11 @@ class SendTimeoutException extends NetCoreException {
   /// Creates a [SendTimeoutException] with the given details.
   SendTimeoutException({
     required super.requestConfig,
+    int? statusCode,
     super.message = 'Send Timeout',
     super.rawData,
     super.stackTrace,
   }) : super(
-         statusCode: 408,
+         statusCode: statusCode ?? 408,
        );
 }
