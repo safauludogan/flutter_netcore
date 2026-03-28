@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
 import 'package:flutter_netcore/src/mapper/netcore_error_mapper.dart';
@@ -84,7 +85,7 @@ mixin NetworkRetryHandlerMixin {
     while (true) {
       try {
         final result = await retryExecutor.execute.call(
-          () async => action.call(null),
+          () async => action.call(requestConfig),
         );
 
         logger?.log(
@@ -96,7 +97,7 @@ mixin NetworkRetryHandlerMixin {
       } on NetCoreException catch (error) {
         logger?.log(
           '🔁 Network error caught: $error',
-          level: LogLevel.warning,
+          level: LogLevel.error,
         );
 
         if (error.statusCode == 401 && !authRefreshAttempted) {
@@ -261,10 +262,22 @@ mixin NetworkRetryHandlerMixin {
   }
 
   bool _shouldAllowManualRetry(NetCoreException e) {
+    // Parse errors are not transient — retrying the same request won't fix them.
+    if (e is ParsingException) return false;
+
     final code = e.statusCode;
     if (code == 401 || code == 403) return false;
     if (code == null) return true; // network error
-    return code >= 500;
+    if (code >= 500) {
+      // Non-idempotent methods must not be manually retried on 5xx —
+      // the server may have already processed the request.
+      final method = e.requestConfig?.method;
+      if (method == HttpMethod.post || method == HttpMethod.patch || method == HttpMethod.delete) {
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   /// Refresh manager

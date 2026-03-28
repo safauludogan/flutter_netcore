@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart' hide ProgressCallback;
+import 'package:flutter/rendering.dart';
 import 'package:flutter_netcore/flutter_netcore.dart';
 import 'package:flutter_netcore/src/adapter/adapter_mixin.dart';
 import 'package:flutter_netcore/src/configuration/network_request_config.dart';
@@ -54,6 +55,7 @@ class DioAdapter with AdapterMixin implements NetworkAdapter {
         data: response.data,
       );
     } on DioException catch (err) {
+      debugPrint('err: $err \nDio error: ${err.message}, response: ${err.response?.data}');
       final newRequestConfig = requestConfig.copyWith(
         response: RawNetworkResponse(
           statusCode: err.response?.statusCode,
